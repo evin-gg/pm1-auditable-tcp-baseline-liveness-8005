@@ -1,0 +1,10 @@
+things that need to be done
+
+Establish controller and worker framework
+actual cracking logic (hashing and all)
+
+1. Controller creates deterministic tasks and listens on TCP.
+2. Worker connects. Controller sends ASSIGN.
+3. Worker sends START, searches sequentially, and sends heartbeats.
+4. Controller records Worker liveness and progress.
+5. Worker sends RESULT. Controller validates and records COMPLETE.
