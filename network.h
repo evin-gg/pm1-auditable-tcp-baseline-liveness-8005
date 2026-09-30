@@ -21,4 +21,6 @@ int bind_socket(server_properties *s);
 
 int start_listen(server_properties *s);
 
+int connect_client(server_properties *s);
+
 #endif
