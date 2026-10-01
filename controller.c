@@ -6,17 +6,30 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define HASH_SETTING "$6$rounds=5000$comp8005$"
+
 int main(int argc, char *argv[]) {
 
   server_properties server = {0};
   in_port_t port;
 
-  char *ip_str = argv[1];
-  char *port_str = argv[2];
+  struct ServerArgs args = {0};
+  server.protocol = AF_INET;
+
+  if (parse_server_args(argc, argv, &args.port_str, &args.password,
+                        &args.charset_file, &args.timeout_ms) == 1) {
+    return EXIT_SUCCESS;
+  }
+
+
+  if (parse_server_args(argc, argv, &args.port_str, &args.password,
+                        &args.charset_file, &args.timeout_ms) == -1) {
+    return EXIT_FAILURE;
+  }
 
   // validate args
-  if (validate_args(argc, argv, &server, &port) == -1) {
-    printf("ERROR: Failed to validate arguments\n"); 
+  if (validate_server_args(args, &port) == -1) {
+    printf("ERROR: Failed to validate arguments\n");
     return EXIT_FAILURE;
   }
 
@@ -36,6 +49,7 @@ int main(int argc, char *argv[]) {
     printf("ERROR: Failed to start listening\n");
     return EXIT_FAILURE;
   }
+  printf("Listening on %s\n", args.port_str);
 
   server.client =
       accept(server.socket, (struct sockaddr *)&server.addr, &server.addr_len);
