@@ -8,3 +8,9 @@ actual cracking logic (hashing and all)
 3. Worker sends START, searches sequentially, and sends heartbeats.
 4. Controller records Worker liveness and progress.
 5. Worker sends RESULT. Controller validates and records COMPLETE.
+
+
+args for client
+args for server
+
+-> then worry about the msgs
