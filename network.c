@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <time.h>
 
 static struct option server_long_options[] = {
     {"port", required_argument, 0, 'p'},
@@ -34,22 +35,18 @@ int parse_client_args(int argc, char *argv[], char **o, char **p, char **i,
 
     switch (opt) {
     case 'o':
-      printf("host = %s\n", optarg);
       *o = optarg;
       break;
 
     case 'p':
-      printf("port = %s\n", optarg);
       *p = optarg;
       break;
 
     case 'i':
-      printf("id = %s\n", optarg);
       *i = optarg;
       break;
 
     case 't':
-      printf("heartbeat-ms = %s\n", optarg);
       *t = optarg;
       break;
 
@@ -74,22 +71,18 @@ int parse_server_args(int argc, char *argv[], char **p, char **w, char **c,
 
     switch (opt) {
     case 'p':
-      printf("port = %s\n", optarg);
       *p = optarg;
       break;
 
     case 'w':
-      printf("password = %s\n", optarg);
       *w = optarg;
       break;
 
     case 'c':
-      printf("charset = %s\n", optarg);
       *c = optarg;
       break;
 
     case 't':
-      printf("timeout = %s\n", optarg);
       *t = optarg;
       break;
 
@@ -112,7 +105,6 @@ int create_socket(server_properties *s) {
     if (s->socket == -1) {
       return -1;
     }
-    printf("IPV4 SOCKET\n");
   }
 
   else {
@@ -120,8 +112,6 @@ int create_socket(server_properties *s) {
     if (s->socket == -1) {
       return -1;
     }
-
-    printf("IPV6 SOCKET\n");
   }
 
   return 0;
@@ -133,13 +123,11 @@ int setup_server_address(server_properties *s, in_port_t *port) {
     s->addr.sin_port = htons(*port);
     s->addr_len = sizeof(struct sockaddr_in);
     s->addr.sin_addr.s_addr = INADDR_ANY;
-    printf("ITS IPV4\n");
   }
 
   else {
     s->addr6.sin6_port = htons(*port);
     s->addr_len = sizeof(struct sockaddr_in6);
-    printf("its IPV6\n");
   }
 
   return 0;
@@ -153,18 +141,15 @@ int bind_socket(server_properties *s) {
       perror("Binding Failed");
       return -1;
     }
-    printf("binding ipv4\n");
   }
 
   else {
-    printf("binding ipv6\n");
     if (bind(s->socket, (struct sockaddr *)&s->addr6, s->addr_len) == -1) {
       perror("Binding Failed");
       return -1;
     }
   }
 
-  printf("binded\n");
   return 0;
 };
 
@@ -173,7 +158,6 @@ int start_listen(server_properties *s) {
     return -1;
   }
 
-  printf("listening\n");
   return 0;
 };
 
@@ -196,7 +180,6 @@ int valid_ip(const char *ip, server_properties *s) {
   if (inet_pton(AF_INET, ip, &ipv4) == 1) {
     s->addr.sin_family = AF_INET;
     s->addr.sin_addr = ipv4;
-    printf("IPV4 Detected\n");
     s->protocol = AF_INET;
     return 0;
   }
@@ -204,7 +187,6 @@ int valid_ip(const char *ip, server_properties *s) {
   if (inet_pton(AF_INET6, ip, &ipv6) == 1) {
     s->addr6.sin6_family = AF_INET6;
     s->addr6.sin6_addr = ipv6;
-    printf("IPV6 Detected\n");
     s->protocol = AF_INET6;
     return 0;
   }
@@ -256,11 +238,6 @@ int validate_server_args(struct ServerArgs args, in_port_t *p) {
     return -1;
   }
 
-  // pass
-  if (strlen(args.password) > 2) {
-    printf("ERROR: Password cannot exceed 2 characters\n");
-  }
-
   // charset_file
   if (access(args.charset_file, F_OK) == 1) {
     printf("ERROR: Charset File path does not exist\n");
@@ -301,4 +278,66 @@ int validate_client_args(struct ClientArgs args, in_port_t *p,
   }
 
   return 0;
+}
+
+void send_ASSIGN(int clientfd, task_t *t) {
+  char message[4096];
+
+  t->state = ASSIGNED;
+
+  snprintf(message, sizeof(message),
+           "ASSIGN task=%d worker=%d start=%d end=%d length=%d hash=%s\n",
+           t->task_id, t->assigned_worker, t->start, t->end, t->length,
+           t->hash_value);
+
+  size_t n = send(clientfd, message, strlen(message), 0);
+  printf("sent: %d bytes\n", (int)n);
+}
+
+void send_COMPLETE(int clientfd, task_t *t) {
+  char message[4096];
+
+  t->state = COMPLETE;
+
+  snprintf(message, sizeof(message),
+           "COMPLETE task=%d worker=%d\n",
+           t->task_id, t->assigned_worker);
+
+  size_t n = send(clientfd, message, strlen(message), 0);
+  printf("COMPLETE sent: %d bytes\n", (int)n);
+}
+
+void send_START(int serverfd, task_t *t) {
+  char message[4096];
+
+  snprintf(message, sizeof(message), "START task=%d worker=%d\n", t->task_id, t->assigned_worker);
+
+  size_t n = send(serverfd, message, strlen(message), 0);
+  printf("START sent: %d bytes\n", (int)n);
+}
+
+void send_HEARTBEAT(int serverfd, task_t *t, int progress) {
+  char message[4096];
+
+  snprintf(message, sizeof(message), "HEARTBEAT task=%d worker=%d state=%d progress=%d\n", t->task_id, t->assigned_worker, t->state, progress);
+
+  size_t n = send(serverfd, message, strlen(message), 0);
+  printf("HEARTBEAT sent: %d bytes\n", (int)n);
+}
+
+void send_RESULT(int serverfd, task_t *t, int index, char *candidate) {
+  char message[4096];
+
+  snprintf(message, sizeof(message), "RESULT task=%d worker=%d result=%d index=%d candidate=%s\n", t->task_id, t->assigned_worker, t->result, index, candidate);
+
+  size_t n = send(serverfd, message, strlen(message), 0);
+  printf("RESULT sent: %d bytes\n", (int)n);
+}
+
+long long get_time_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }

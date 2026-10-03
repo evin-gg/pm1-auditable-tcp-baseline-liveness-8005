@@ -32,6 +32,42 @@ struct ClientArgs {
   char *heartbeat;
 };
 
+typedef enum{
+    PENDING,
+    ASSIGNED,
+    COMPLETE,
+} TaskStatus;
+
+typedef enum{
+    WORKING,
+    STALE,
+} WorkerStatus;
+
+typedef enum{
+    FOUND,
+    NOT_FOUND,
+    NONE,
+} TaskResult;
+
+typedef struct {
+    int task_id;
+    int start;
+    int end;
+    int assigned_worker;
+    int state;
+    int result;
+    int length;
+    char *hash_value;
+} task_t;
+
+typedef struct {
+    int worker_id;
+    long last_heartbeat;
+    int task_id;
+    int progress;
+    int state;
+} worker_t;
+
 int create_socket(server_properties *s);
 
 int setup_server_address(server_properties *s, in_port_t *port);
@@ -56,4 +92,17 @@ int parse_server_args(int argc, char *argv[], char **p, char **w, char **c,
 
 int parse_client_args(int argc, char *argv[], char **h, char **p, char **i,
                       char **t);
+
+void send_ASSIGN(int clientfd, task_t *t);
+
+void send_START(int serverfd, task_t *t);
+
+void send_HEARTBEAT(int serverfd, task_t *t, int progress);
+
+void send_RESULT(int serverfd, task_t *t, int index, char *candidate);
+
+void send_COMPLETE(int clientfd, task_t *t);
+
+long long get_time_ms(void);
+
 #endif
