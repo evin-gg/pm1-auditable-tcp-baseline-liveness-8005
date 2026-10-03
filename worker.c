@@ -66,7 +66,6 @@ int main(int argc, char *argv[]) {
                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                    "0123456789!@#$%^&*()-_=+[]{}:,.?";
   int charset_size = strlen(charset);
-  printf("CHARSETSEIZE: %d\n", (int)charset_size);
 
   // a loop to account for incomplete messages
   while (1) {
