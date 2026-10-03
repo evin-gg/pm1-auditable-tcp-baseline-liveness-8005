@@ -79,7 +79,10 @@ int main(int argc, char *argv[]) {
   }
 
   // setup and start server
-  setup_server_address(&server, &port);
+  if (setup_server_address(&server, &port) == -1) {
+    printf("ERROR: Failed to initialize server struct\n");
+    return EXIT_FAILURE;
+  }
 
   if (bind_socket(&server)) {
     printf("ERROR: Failed to bind\n");
@@ -152,8 +155,9 @@ int main(int argc, char *argv[]) {
 
         if (current_time - worker.last_heartbeat >= timeout_ms) {
           printf("ERROR: Worker timed out\n");
-            
+
           printf("STATUS: Task state PENDING\n");
+          printf("STATUS: Worker state STALE\n");
           worker.state = STALE;
           task.state = PENDING;
           close(server.client);
@@ -173,14 +177,15 @@ int main(int argc, char *argv[]) {
       }
 
       if (bytes == 0) {
-          printf("ERROR: Worker disconnected\n");
-          worker.state = STALE;
-          task.state = PENDING;
+        printf("ERROR: Worker disconnected\n");
+        worker.state = STALE;
+        task.state = PENDING;
 
-          printf("STATUS: Task set to PENDING\n");
+        printf("STATUS: Task set to PENDING\n");
+        printf("STATUS: Worker state STALE\n");
 
-          close(server.client);
-          break;
+        close(server.client);
+        break;
       }
 
       if (c == '\n') {
